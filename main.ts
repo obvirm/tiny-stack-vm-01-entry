@@ -3,7 +3,6 @@ import { join } from 'node:path';
 
 const IN = process.env.MAKEFUN_INPUT_DIR ?? '/input';
 const OUT = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
-const enc = new TextEncoder();
 
 const IMM = new Int8Array(256).fill(-1);
 const POP = new Int8Array(256);
@@ -154,11 +153,21 @@ function run(prog: Uint8Array, input: Uint8Array): [Uint8Array, number] {
         break;
       }
       case 0x50: {
-        const bs = enc.encode(String(st[sp - 1]));
-        if (ol + bs.length > 65536) return stop(11);
+        const v = st[sp - 1];
+        const neg = v < 0;
+        let d = neg ? -v : v;
+        let digits = 1;
+        for (let t = d; t >= 10; t = Math.floor(t / 10)) digits++;
+        const len = digits + (neg ? 1 : 0);
+        if (ol + len > 65536) return stop(11);
         sp--;
-        out.set(bs, ol);
-        ol += bs.length;
+        let w = ol + len;
+        for (let i = 0; i < digits; i++) {
+          out[--w] = 48 + (d % 10);
+          d = Math.floor(d / 10);
+        }
+        if (neg) out[ol] = 45;
+        ol += len;
         break;
       }
       case 0x51:
